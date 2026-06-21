@@ -45,20 +45,19 @@ export function hueDiff(a, b) {
 }
 
 /**
- * Weighted HSL distance with a power curve.
- * Hue (60%) > Saturation (25%) > Lightness (15%).
- * Power of 1.7 punishes large errors significantly.
+ * Weighted HSL distance — hue heavily dominant — with steep power curve.
+ * Hue (75%) > Saturation (15%) > Lightness (10%).
+ * Power 4: wrong hue kills the score, sat/lit can't compensate.
  *
- * Examples at correct sat/lit:
- *   0° off → 100%  |  30° off → 78%  |  60° off → 52%
- *   90° off → 32%  |  120° off → 17% |  180° off → 7%
+ *   0° off → 100% | 10° → 84% | 30° → 59% | 60° → 32%
+ *   80° off → 20% | 90° → 16% | 120° → 6%  | 180° → 1%
  */
 export function calculateScore(guessHsl, realHsl) {
   const hDist = hueDiff(guessHsl.h, realHsl.h) / 180        // 0–1
   const sDist = Math.abs(guessHsl.s - realHsl.s) / 100      // 0–1
   const lDist = Math.abs(guessHsl.l - realHsl.l) / 100      // 0–1
 
-  const dist = 0.60 * hDist + 0.25 * sDist + 0.15 * lDist  // 0–1
+  const dist = 0.75 * hDist + 0.15 * sDist + 0.10 * lDist  // 0–1
 
-  return Math.round(Math.max(0, 1 - dist) ** 2.5 * 100)
+  return Math.round(Math.max(0, 1 - dist) ** 4 * 100)
 }
