@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { collections } from '../data/collections.js'
 import { dominantColors } from '../data/dominant-colors.js'
 import Footer from '../components/Footer.jsx'
@@ -73,17 +74,78 @@ export default function CollectionSelect({ onSelect }) {
     .map(id => collections.find(c => c.id === id))
     .filter(Boolean)
 
+  const [showInfo, setShowInfo] = useState(false)
+
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center py-8 px-4 md:px-6">
       <div className="w-full max-w-5xl">
 
         {/* Header */}
-        <div className="text-center mb-7 md:mb-10">
+        <div className="text-center mb-7 md:mb-10 relative">
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white">
-            Football Color Matcher
+            Crest FC
           </h1>
-          <p className="text-zinc-500 mt-2 text-sm">Choose a collection to play</p>
+          <p className="text-zinc-400 mt-1 text-sm font-medium">Football Color Picker</p>
+          <p className="text-zinc-600 mt-1 text-xs">Guess the dominant color of football club badges</p>
+
+          {/* Info button */}
+          <button
+            onClick={() => setShowInfo(true)}
+            className="absolute right-0 top-0 w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-all cursor-pointer text-sm font-bold"
+            aria-label="How to play"
+          >
+            i
+          </button>
         </div>
+
+        {/* Info modal */}
+        {showInfo && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowInfo(false)}
+          >
+            <div
+              className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 max-w-sm w-full shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-lg font-extrabold text-white">How to play</h2>
+                <button
+                  onClick={() => setShowInfo(false)}
+                  className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 hover:text-white transition-all cursor-pointer text-sm"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <ol className="space-y-4">
+                {[
+                  { n: '1', title: 'Pick a collection', desc: 'Choose a league or competition. You\'ll get 5 random club badges.' },
+                  { n: '2', title: 'Study the badge', desc: 'Each badge has its dominant color masked — replaced by a random color.' },
+                  { n: '3', title: 'Adjust the sliders', desc: 'Use the Hue, Saturation and Lightness sliders to match the hidden color.' },
+                  { n: '4', title: 'Check your score', desc: 'Press Check Score to reveal the correct color and see how close you were (0–100%).' },
+                  { n: '5', title: 'Final result', desc: 'After 5 rounds, you get an average score. The closer to 100%, the better!' },
+                ].map(({ n, title, desc }) => (
+                  <li key={n} className="flex gap-3">
+                    <span className="w-6 h-6 rounded-full bg-zinc-700 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{n}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-white">{title}</p>
+                      <p className="text-xs text-zinc-400 mt-0.5">{desc}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              <button
+                onClick={() => setShowInfo(false)}
+                className="mt-6 w-full py-3 rounded-2xl bg-green-500 hover:bg-green-400 text-black font-bold text-sm transition-all cursor-pointer"
+              >
+                Let's play!
+              </button>
+            </div>
+          </div>
+        )}
+
 
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
