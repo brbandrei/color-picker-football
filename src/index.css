@@ -69,3 +69,21 @@ input[type='range']::-moz-range-track {
   border: none;
   background: transparent;
 }
+
+/* ── Mobile: bigger thumb + track ── */
+@media (max-width: 639px) {
+  input[type='range'] {
+    height: 14px;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    width: 34px;
+    height: 34px;
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 34px;
+    height: 34px;
+  }
+  input[type='range']::-moz-range-track {
+    height: 14px;
+  }
+}

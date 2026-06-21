@@ -55,16 +55,18 @@ function scoreColor(pct) {
   return '#f87171'
 }
 
-function useLogoSize() {
-  const [size, setSize] = useState(() =>
-    typeof window !== 'undefined' && window.innerWidth < 640 ? 185 : 240
-  )
+function useResponsive() {
+  const get = () => {
+    const mobile = window.innerWidth < 640
+    return { logoSize: mobile ? 185 : 240, trackH: mobile ? 14 : 10, thumbSize: mobile ? 34 : 22 }
+  }
+  const [vals, setVals] = useState(get)
   useEffect(() => {
-    const update = () => setSize(window.innerWidth < 640 ? 185 : 240)
+    const update = () => setVals(get())
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [])
-  return size
+  return vals
 }
 
 // ── Main App ────────────────────────────────────────────────────────────────
@@ -77,7 +79,7 @@ export default function App() {
   const [roundScores, setRoundScores] = useState([])
 
   // Per-round game state
-  const logoSize = useLogoSize()
+  const { logoSize, trackH, thumbSize } = useResponsive()
   const [guess, setGuess] = useState({ h: 0, s: 80, l: 50 })
   const [phase, setPhase] = useState('playing')         // 'playing' | 'revealed'
   const [score, setScore] = useState(null)
@@ -207,17 +209,17 @@ export default function App() {
             <div className={`flex items-center gap-4 shrink-0 order-2 md:order-1 transition-opacity duration-300 ${phase === 'revealed' ? 'opacity-40 pointer-events-none' : ''}`}>
               <VerticalColorSlider
                 label="Hue" abbr="H" value={h} min={0} max={360} unit="°"
-                trackGradient={HUE_TRACK}
+                trackGradient={HUE_TRACK} trackH={trackH} thumbSize={thumbSize}
                 onChange={val => setGuess(prev => ({ ...prev, h: val }))}
               />
               <VerticalColorSlider
                 label="Saturation" abbr="S" value={s} min={0} max={100} unit="%"
-                trackGradient={satTrack}
+                trackGradient={satTrack} trackH={trackH} thumbSize={thumbSize}
                 onChange={val => setGuess(prev => ({ ...prev, s: val }))}
               />
               <VerticalColorSlider
                 label="Lightness" abbr="L" value={l} min={0} max={100} unit="%"
-                trackGradient={litTrack}
+                trackGradient={litTrack} trackH={trackH} thumbSize={thumbSize}
                 onChange={val => setGuess(prev => ({ ...prev, l: val }))}
               />
             </div>

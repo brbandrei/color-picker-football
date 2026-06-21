@@ -1,13 +1,6 @@
 const VISUAL_LENGTH = 220  // px — visual height of the track after rotation
-const TRACK_H       = 10   // px — track thickness
-const THUMB_SIZE    = 22   // px — thumb diameter
 
-/**
- * Vertical slider built with CSS transform rotate(-90deg).
- * After rotation: bottom = min value, top = max value.
- * trackGradient is still declared `to right` — after -90° it renders bottom→top.
- */
-export default function VerticalColorSlider({ label, abbr, value, min, max, unit = '', trackGradient, onChange }) {
+export default function VerticalColorSlider({ label, abbr, value, min, max, unit = '', trackGradient, onChange, trackH = 10, thumbSize = 22 }) {
   return (
     <div className="flex flex-col items-center gap-3 select-none">
 
@@ -20,7 +13,7 @@ export default function VerticalColorSlider({ label, abbr, value, min, max, unit
       </div>
 
       {/* Rotated range input */}
-      <div style={{ position: 'relative', width: THUMB_SIZE, height: VISUAL_LENGTH }}>
+      <div style={{ position: 'relative', width: thumbSize, height: VISUAL_LENGTH }}>
         <input
           type="range"
           min={min}
@@ -30,10 +23,9 @@ export default function VerticalColorSlider({ label, abbr, value, min, max, unit
           style={{
             position: 'absolute',
             width: VISUAL_LENGTH,
-            height: TRACK_H,
-            // Center the rotated element inside the wrapper
-            left: (THUMB_SIZE - VISUAL_LENGTH) / 2,
-            top:  (VISUAL_LENGTH - TRACK_H) / 2,
+            height: trackH,
+            left: (thumbSize - VISUAL_LENGTH) / 2,
+            top:  (VISUAL_LENGTH - trackH) / 2,
             transform: 'rotate(-90deg)',
             transformOrigin: 'center center',
             background: trackGradient,
