@@ -48,6 +48,12 @@ function buildRoundTeams(collection) {
   })
 }
 
+function timerColor(t) {
+  if (t > 15) return '#4ade80'
+  if (t > 8)  return '#facc15'
+  return '#f87171'
+}
+
 function scoreColor(pct) {
   if (pct >= 80) return '#4ade80'
   if (pct >= 60) return '#facc15'
@@ -83,17 +89,28 @@ export default function App() {
   const [guess, setGuess] = useState({ h: 0, s: 80, l: 50 })
   const [phase, setPhase] = useState('playing')         // 'playing' | 'revealed'
   const [score, setScore] = useState(null)
+  const [timeLeft, setTimeLeft] = useState(30)
 
   const currentTeam = roundTeams[currentRound]
 
-  // Reset guess when round changes
+  // Reset guess + timer when round changes
   useEffect(() => {
     if (currentTeam) {
       setGuess({ ...currentTeam.randomStartingColor })
       setPhase('playing')
       setScore(null)
+      setTimeLeft(30)
     }
   }, [currentRound, roundTeams])
+
+  // Countdown
+  useEffect(() => {
+    if (phase !== 'playing') return
+    if (timeLeft === 0) { handleVerify(); return }
+    const id = setTimeout(() => setTimeLeft(t => t - 1), 1000)
+    return () => clearTimeout(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, phase])
 
   function handleSelectCollection(col) {
     const teams = buildRoundTeams(col)
@@ -183,9 +200,31 @@ export default function App() {
                 Guess the logo's color
               </p>
             </div>
-            <span className="text-xs font-mono text-zinc-400 bg-zinc-800 px-2.5 py-1 rounded-lg shrink-0">
-              {currentRound + 1} / {ROUNDS_PER_GAME}
-            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-mono text-zinc-500">
+                {currentRound + 1}/{ROUNDS_PER_GAME}
+              </span>
+              {/* Circular countdown */}
+              <div className="relative w-10 h-10">
+                <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15.9" fill="none" stroke="#3f3f46" strokeWidth="3.2"/>
+                  <circle
+                    cx="18" cy="18" r="15.9" fill="none"
+                    stroke={phase === 'revealed' ? '#3f3f46' : timerColor(timeLeft)}
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
+                    strokeDasharray={`${(timeLeft / 30) * 100} 100`}
+                    style={{ transition: 'stroke-dasharray 0.9s linear, stroke 0.5s' }}
+                  />
+                </svg>
+                <span
+                  className="absolute inset-0 flex items-center justify-center text-[11px] font-bold tabular-nums"
+                  style={{ color: phase === 'revealed' ? '#71717a' : timerColor(timeLeft) }}
+                >
+                  {phase === 'revealed' ? '✓' : timeLeft}
+                </span>
+              </div>
+            </div>
           </div>
 
           {/* Main area — column on mobile, row on md+ */}
