@@ -1,6 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Footer from '../components/Footer.jsx'
-import DailyLeaderboard from '../components/DailyLeaderboard.jsx'
 import { supabase } from '../lib/supabase.js'
 
 function scoreColor(pct) {
@@ -31,6 +30,17 @@ function buildShareText(collectionName, roundTeams, roundScores, avg) {
   ].join('\n')
 }
 
+async function submitAndGetPercentile(date, score) {
+  if (!supabase) return null
+  await supabase.from('daily_scores').insert({ date, score })
+  const [{ count: total }, { count: below }] = await Promise.all([
+    supabase.from('daily_scores').select('*', { count: 'exact', head: true }).eq('date', date),
+    supabase.from('daily_scores').select('*', { count: 'exact', head: true }).eq('date', date).lt('score', score),
+  ])
+  if (!total || total < 2) return null
+  return Math.round((below / total) * 100)
+}
+
 export default function ResultsScreen({
   roundTeams, roundScores, collectionName,
   onPlayAgain, onChangeCollection,
@@ -38,14 +48,24 @@ export default function ResultsScreen({
 }) {
   const avg = Math.round(roundScores.reduce((s, x) => s + x, 0) / roundScores.length)
   const [toast, setToast] = useState(null)
+  const [percentile, setPercentile] = useState(undefined) // undefined=loading, null=N/A, number=ready
 
-  // Daily leaderboard state
-  const savedNickname = localStorage.getItem('crestfc_nickname') || ''
-  const alreadySubmitted = dailyDate && localStorage.getItem(`crestfc_daily_${dailyDate}`)
-  const [nickname, setNickname] = useState(savedNickname)
-  const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(!!alreadySubmitted)
-  const [submittedNickname, setSubmittedNickname] = useState(alreadySubmitted || '')
+  useEffect(() => {
+    if (!isDailyChallenge || !dailyDate) return
+    const key = `crestfc_daily_${dailyDate}`
+    if (localStorage.getItem(key)) {
+      // Already submitted — just fetch percentile
+      const saved = parseInt(localStorage.getItem(`${key}_pct`), 10)
+      setPercentile(isNaN(saved) ? null : saved)
+      return
+    }
+    localStorage.setItem(key, '1')
+    submitAndGetPercentile(dailyDate, avg).then(pct => {
+      setPercentile(pct)
+      if (pct !== null) localStorage.setItem(`${key}_pct`, String(pct))
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function showToast(type) {
     setToast(type)
@@ -60,24 +80,6 @@ export default function ResultsScreen({
       await navigator.clipboard.writeText(text)
       showToast('copied')
     }
-  }
-
-  async function handleSubmit() {
-    if (!nickname.trim() || !supabase) return
-    setSubmitting(true)
-    const nick = nickname.trim().slice(0, 20)
-    const { error } = await supabase.from('daily_scores').insert({
-      date: dailyDate,
-      nickname: nick,
-      score: avg,
-    })
-    if (!error) {
-      localStorage.setItem('crestfc_nickname', nick)
-      localStorage.setItem(`crestfc_daily_${dailyDate}`, nick)
-      setSubmittedNickname(nick)
-      setSubmitted(true)
-    }
-    setSubmitting(false)
   }
 
   return (
@@ -114,38 +116,29 @@ export default function ResultsScreen({
           })}
         </div>
 
-        {/* Daily leaderboard submission */}
+        {/* Daily percentile */}
         {isDailyChallenge && (
-          <div className="bg-amber-950/30 border border-amber-800/40 rounded-2xl p-4 mb-4">
-            {!submitted ? (
-              <>
-                <p className="text-sm font-bold text-amber-300 mb-3">Submit to today's leaderboard</p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Your nickname"
-                    maxLength={20}
-                    value={nickname}
-                    onChange={e => setNickname(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-500 outline-none focus:border-amber-500 transition-colors"
-                  />
-                  <button
-                    onClick={handleSubmit}
-                    disabled={!nickname.trim() || submitting || !supabase}
-                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-bold text-sm transition-all cursor-pointer shrink-0"
-                  >
-                    {submitting ? '...' : 'Submit'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-amber-300 font-semibold text-center">
-                ✅ Score submitted as <span className="text-white">{submittedNickname}</span>
-              </p>
+          <div className="bg-amber-950/30 border border-amber-800/40 rounded-2xl px-5 py-4 mb-4 text-center">
+            {percentile === undefined && (
+              <div className="flex items-center justify-center gap-2 text-amber-400 text-sm">
+                <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                Calculating your ranking...
+              </div>
             )}
-
-            <DailyLeaderboard date={dailyDate} highlightNickname={submittedNickname} />
+            {percentile === null && supabase && (
+              <p className="text-amber-400 text-sm">You're among the first to play today!</p>
+            )}
+            {percentile !== null && percentile !== undefined && (
+              <>
+                <p className="text-3xl font-extrabold text-white">{percentile}%</p>
+                <p className="text-amber-300 text-sm mt-1">
+                  You scored better than <span className="font-bold text-white">{percentile}%</span> of today's players
+                </p>
+              </>
+            )}
+            {!supabase && (
+              <p className="text-zinc-500 text-xs">Ranking not available — Supabase not configured.</p>
+            )}
           </div>
         )}
 
@@ -158,11 +151,13 @@ export default function ResultsScreen({
             </svg>
             Share result
           </button>
-          <button onClick={onPlayAgain} className="w-full py-4 rounded-2xl bg-green-500 hover:bg-green-400 active:scale-[0.97] text-black font-bold text-base tracking-wide transition-all duration-150 cursor-pointer">
-            Play again with same collection
-          </button>
+          {!isDailyChallenge && (
+            <button onClick={onPlayAgain} className="w-full py-4 rounded-2xl bg-green-500 hover:bg-green-400 active:scale-[0.97] text-black font-bold text-base tracking-wide transition-all duration-150 cursor-pointer">
+              Play again with same collection
+            </button>
+          )}
           <button onClick={onChangeCollection} className="w-full py-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 active:scale-[0.97] text-white font-bold text-base tracking-wide transition-all duration-150 cursor-pointer">
-            Change collection
+            {isDailyChallenge ? 'Back to collections' : 'Change collection'}
           </button>
         </div>
 
