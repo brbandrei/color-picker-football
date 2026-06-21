@@ -55,11 +55,11 @@ export default function ResultsScreen({
     if (!isDailyChallenge || !dailyDate) return
     const key = `crestfc_daily_${dailyDate}`
     const saved = parseInt(localStorage.getItem(`${key}_pct`), 10)
-    if (localStorage.getItem(`${key}_submitted`)) {
+    if (localStorage.getItem(key)) {
       setPercentile(isNaN(saved) ? null : saved)
       return
     }
-    localStorage.setItem(`${key}_submitted`, '1')
+    localStorage.setItem(key, '1')
     submitAndGetPercentile(dailyDate, avg).then(pct => {
       setPercentile(pct)
       if (pct !== null) localStorage.setItem(`${key}_pct`, String(pct))
