@@ -150,30 +150,27 @@ export default function CollectionSelect({ onSelect, onDailyChallenge, onChallen
         )}
 
 
-        {/* Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+        {/* Special cards row — always 3 columns */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
 
           {/* Daily Challenge */}
           <button
             onClick={alreadyPlayedToday ? undefined : onDailyChallenge}
             disabled={alreadyPlayedToday}
-            className={`col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 flex items-center gap-5 rounded-2xl border transition-all duration-150 px-6 py-5 ${
+            className={`flex flex-col items-center text-center gap-2.5 rounded-2xl border p-3 sm:p-4 transition-all duration-150 ${
               alreadyPlayedToday
                 ? 'border-zinc-800 bg-zinc-900/40 opacity-50 cursor-not-allowed'
-                : 'border-amber-800/50 bg-gradient-to-r from-amber-950/70 via-yellow-950/60 to-amber-950/70 hover:border-amber-500 hover:brightness-110 active:scale-[0.98] cursor-pointer'
+                : 'border-amber-800/40 bg-amber-950/25 hover:border-amber-600/70 hover:bg-amber-950/50 active:scale-[0.97] cursor-pointer'
             }`}
           >
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-900/50 text-2xl">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-xl shadow-md shadow-amber-900/40 shrink-0">
               📅
             </div>
-            <div className="text-left flex-1 min-w-0">
-              <p className="text-base font-extrabold text-white tracking-tight">Daily Challenge</p>
-              <p className="text-sm text-amber-300 mt-0.5">Same 5 crests for everyone · {dailyDate}</p>
-            </div>
-            <div className="shrink-0 text-right">
+            <div>
+              <p className="text-sm font-bold text-white leading-tight">Daily</p>
               {alreadyPlayedToday
-                ? <span className="text-xs text-amber-500 font-bold">✓ Played today</span>
-                : <span className="text-xs text-amber-400 font-bold uppercase tracking-wide">🏆 Leaderboard</span>
+                ? <p className="text-[11px] text-amber-500 mt-0.5">✓ Done</p>
+                : <p className="text-[11px] text-amber-400/80 mt-0.5">Global rank</p>
               }
             </div>
           </button>
@@ -181,38 +178,34 @@ export default function CollectionSelect({ onSelect, onDailyChallenge, onChallen
           {/* Challenge Friends */}
           <button
             onClick={onChallengeFriends}
-            className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 flex items-center gap-5 rounded-2xl border border-violet-800/50 bg-gradient-to-r from-violet-950/70 via-purple-950/60 to-violet-950/70 hover:border-violet-500 hover:brightness-110 active:scale-[0.98] transition-all duration-150 cursor-pointer px-6 py-5"
+            className="flex flex-col items-center text-center gap-2.5 rounded-2xl border border-violet-800/40 bg-violet-950/25 hover:border-violet-600/70 hover:bg-violet-950/50 active:scale-[0.97] transition-all duration-150 cursor-pointer p-3 sm:p-4"
           >
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/50 text-2xl">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-xl shadow-md shadow-violet-900/40 shrink-0">
               ⚔️
             </div>
-            <div className="text-left flex-1 min-w-0">
-              <p className="text-base font-extrabold text-white tracking-tight">Challenge Friends</p>
-              <p className="text-sm text-violet-300 mt-0.5">Generate a link · everyone plays the same 5 crests</p>
-            </div>
-            <div className="shrink-0 text-right">
-              <span className="text-xs text-violet-400 font-bold uppercase tracking-wide">🏆 Leaderboard</span>
+            <div>
+              <p className="text-sm font-bold text-white leading-tight">Challenge</p>
+              <p className="text-[11px] text-violet-400/80 mt-0.5">vs friends</p>
             </div>
           </button>
 
-          {/* All Teams — special card spanning full first row feel */}
-          {(() => {
-            const count = eligibleCount(ALL_COLLECTION)
-            return (
-              <button
-                onClick={() => onSelect(ALL_COLLECTION)}
-                className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 flex items-center gap-5 rounded-2xl border border-indigo-800/60 bg-gradient-to-r from-indigo-950 via-purple-950 to-indigo-950 hover:border-indigo-500 hover:brightness-110 active:scale-[0.98] transition-all duration-150 cursor-pointer px-6 py-5"
-              >
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-900/60">
-                  <span className="text-2xl font-black text-white leading-none">∞</span>
-                </div>
-                <div className="text-left">
-                  <p className="text-base font-extrabold text-white tracking-tight">All Teams</p>
-                  <p className="text-sm text-indigo-300 mt-0.5">{count} teams from all collections</p>
-                </div>
-              </button>
-            )
-          })()}
+          {/* All Teams */}
+          <button
+            onClick={() => onSelect(ALL_COLLECTION)}
+            className="flex flex-col items-center text-center gap-2.5 rounded-2xl border border-indigo-800/40 bg-indigo-950/25 hover:border-indigo-600/70 hover:bg-indigo-950/50 active:scale-[0.97] transition-all duration-150 cursor-pointer p-3 sm:p-4"
+          >
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md shadow-indigo-900/40 shrink-0">
+              <span className="text-2xl font-black text-white leading-none">∞</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-white leading-tight">All Teams</p>
+              <p className="text-[11px] text-indigo-400/80 mt-0.5">{eligibleCount(ALL_COLLECTION)} crests</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Collections grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
 
           {sorted.map(col => {
             const logoSrc = TOURNAMENT_LOGOS[col.id]
