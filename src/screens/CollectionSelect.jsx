@@ -155,8 +155,13 @@ export default function CollectionSelect({ onSelect, onDailyChallenge }) {
 
           {/* Daily Challenge */}
           <button
-            onClick={onDailyChallenge}
-            className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 flex items-center gap-5 rounded-2xl border border-amber-800/50 bg-gradient-to-r from-amber-950/70 via-yellow-950/60 to-amber-950/70 hover:border-amber-500 hover:brightness-110 active:scale-[0.98] transition-all duration-150 cursor-pointer px-6 py-5"
+            onClick={alreadyPlayedToday ? undefined : onDailyChallenge}
+            disabled={alreadyPlayedToday}
+            className={`col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 flex items-center gap-5 rounded-2xl border transition-all duration-150 px-6 py-5 ${
+              alreadyPlayedToday
+                ? 'border-zinc-800 bg-zinc-900/40 opacity-50 cursor-not-allowed'
+                : 'border-amber-800/50 bg-gradient-to-r from-amber-950/70 via-yellow-950/60 to-amber-950/70 hover:border-amber-500 hover:brightness-110 active:scale-[0.98] cursor-pointer'
+            }`}
           >
             <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-900/50 text-2xl">
               📅
