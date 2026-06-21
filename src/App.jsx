@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { dominantColors } from './data/dominant-colors.js'
+import { collections as allCollections } from './data/collections.js'
 import VerticalColorSlider from './components/VerticalColorSlider.jsx'
 import MaskedLogo from './components/MaskedLogo.jsx'
 import CollectionSelect from './screens/CollectionSelect.jsx'
 import ResultsScreen from './screens/ResultsScreen.jsx'
 import { calculateScore } from './utils/color.js'
+import { getDailyDateString, getDailySeed, seededShuffle, lcg } from './utils/daily.js'
 
 const ROUNDS_PER_GAME = 5
 
@@ -18,6 +20,32 @@ const HUE_TRACK =
 
 function slugToName(slug) {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+function buildDailyTeams() {
+  const seen = new Set()
+  const all = []
+  for (const col of allCollections) {
+    for (const t of col.teams) {
+      if (!seen.has(t.slug) && dominantColors[t.slug] != null) {
+        seen.add(t.slug)
+        all.push({ slug: t.slug, logoUrl: col.logoBasePath + t.logoFile })
+      }
+    }
+  }
+  const seed = getDailySeed()
+  const picked = seededShuffle(all, seed).slice(0, ROUNDS_PER_GAME)
+  const rng = lcg(seed + 999)
+  return picked.map(t => {
+    const dc = dominantColors[t.slug]
+    return {
+      slug: t.slug,
+      name: slugToName(t.slug),
+      logoUrl: t.logoUrl,
+      dominantColor: dc,
+      randomStartingColor: { h: (dc.h + 150 + Math.floor(rng() * 60)) % 360, s: 80, l: 50 },
+    }
+  })
 }
 
 function shuffle(arr) {
@@ -83,6 +111,7 @@ export default function App() {
   const [roundTeams, setRoundTeams] = useState([])
   const [currentRound, setCurrentRound] = useState(0)
   const [roundScores, setRoundScores] = useState([])
+  const [isDailyChallenge, setIsDailyChallenge] = useState(false)
 
   // Per-round game state
   const { logoSize, trackH, thumbSize } = useResponsive()
@@ -118,6 +147,18 @@ export default function App() {
     setRoundTeams(teams)
     setCurrentRound(0)
     setRoundScores([])
+    setIsDailyChallenge(false)
+    setScreen('game')
+  }
+
+  function handleDailyChallenge() {
+    const teams = buildDailyTeams()
+    const date = getDailyDateString()
+    setCollection({ id: 'daily', name: `Daily Challenge — ${date}`, logoBasePath: '', teams: [] })
+    setRoundTeams(teams)
+    setCurrentRound(0)
+    setRoundScores([])
+    setIsDailyChallenge(true)
     setScreen('game')
   }
 
@@ -140,7 +181,7 @@ export default function App() {
   // ── Screens ──────────────────────────────────────────────────────────────
 
   if (screen === 'select') {
-    return <CollectionSelect onSelect={handleSelectCollection} />
+    return <CollectionSelect onSelect={handleSelectCollection} onDailyChallenge={handleDailyChallenge} />
   }
 
   if (screen === 'results') {
@@ -149,8 +190,10 @@ export default function App() {
         roundTeams={roundTeams}
         roundScores={roundScores}
         collectionName={collection.name}
-        onPlayAgain={() => handleSelectCollection(collection)}
+        onPlayAgain={() => isDailyChallenge ? handleDailyChallenge() : handleSelectCollection(collection)}
         onChangeCollection={() => setScreen('select')}
+        isDailyChallenge={isDailyChallenge}
+        dailyDate={getDailyDateString()}
       />
     )
   }

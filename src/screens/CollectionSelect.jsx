@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { collections } from '../data/collections.js'
 import { dominantColors } from '../data/dominant-colors.js'
 import Footer from '../components/Footer.jsx'
+import { getDailyDateString } from '../utils/daily.js'
 
 const TOURNAMENT_LOGOS = {
   'ucl-champions-league-2025-2026':       '/tournaments/tournaments_uefa-champions-league_512x512.football-logos.cc.png',
@@ -69,12 +70,14 @@ function eligibleCount(collection) {
   return collection.teams.filter(t => dominantColors[t.slug] != null).length
 }
 
-export default function CollectionSelect({ onSelect }) {
+export default function CollectionSelect({ onSelect, onDailyChallenge }) {
   const sorted = DISPLAY_ORDER
     .map(id => collections.find(c => c.id === id))
     .filter(Boolean)
 
   const [showInfo, setShowInfo] = useState(false)
+  const dailyDate = getDailyDateString()
+  const alreadyPlayedToday = !!localStorage.getItem(`crestfc_daily_${dailyDate}`)
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center py-8 px-4 md:px-6">
@@ -149,6 +152,26 @@ export default function CollectionSelect({ onSelect }) {
 
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+
+          {/* Daily Challenge */}
+          <button
+            onClick={onDailyChallenge}
+            className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 flex items-center gap-5 rounded-2xl border border-amber-800/50 bg-gradient-to-r from-amber-950/70 via-yellow-950/60 to-amber-950/70 hover:border-amber-500 hover:brightness-110 active:scale-[0.98] transition-all duration-150 cursor-pointer px-6 py-5"
+          >
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-900/50 text-2xl">
+              📅
+            </div>
+            <div className="text-left flex-1 min-w-0">
+              <p className="text-base font-extrabold text-white tracking-tight">Daily Challenge</p>
+              <p className="text-sm text-amber-300 mt-0.5">Same 5 crests for everyone · {dailyDate}</p>
+            </div>
+            <div className="shrink-0 text-right">
+              {alreadyPlayedToday
+                ? <span className="text-xs text-amber-500 font-bold">✓ Played today</span>
+                : <span className="text-xs text-amber-400 font-bold uppercase tracking-wide">🏆 Leaderboard</span>
+              }
+            </div>
+          </button>
 
           {/* All Teams — special card spanning full first row feel */}
           {(() => {
