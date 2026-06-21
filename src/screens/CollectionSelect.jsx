@@ -70,7 +70,7 @@ function eligibleCount(collection) {
   return collection.teams.filter(t => dominantColors[t.slug] != null).length
 }
 
-export default function CollectionSelect({ onSelect, onDailyChallenge }) {
+export default function CollectionSelect({ onSelect, onDailyChallenge, onChallengeFriends }) {
   const sorted = DISPLAY_ORDER
     .map(id => collections.find(c => c.id === id))
     .filter(Boolean)
@@ -175,6 +175,23 @@ export default function CollectionSelect({ onSelect, onDailyChallenge }) {
                 ? <span className="text-xs text-amber-500 font-bold">✓ Played today</span>
                 : <span className="text-xs text-amber-400 font-bold uppercase tracking-wide">🏆 Leaderboard</span>
               }
+            </div>
+          </button>
+
+          {/* Challenge Friends */}
+          <button
+            onClick={onChallengeFriends}
+            className="col-span-2 sm:col-span-3 md:col-span-4 lg:col-span-5 flex items-center gap-5 rounded-2xl border border-violet-800/50 bg-gradient-to-r from-violet-950/70 via-purple-950/60 to-violet-950/70 hover:border-violet-500 hover:brightness-110 active:scale-[0.98] transition-all duration-150 cursor-pointer px-6 py-5"
+          >
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center shrink-0 shadow-lg shadow-violet-900/50 text-2xl">
+              ⚔️
+            </div>
+            <div className="text-left flex-1 min-w-0">
+              <p className="text-base font-extrabold text-white tracking-tight">Challenge Friends</p>
+              <p className="text-sm text-violet-300 mt-0.5">Generate a link · everyone plays the same 5 crests</p>
+            </div>
+            <div className="shrink-0 text-right">
+              <span className="text-xs text-violet-400 font-bold uppercase tracking-wide">🏆 Leaderboard</span>
             </div>
           </button>
 

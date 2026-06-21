@@ -1,12 +1,14 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { dominantColors } from './data/dominant-colors.js'
 import { collections as allCollections } from './data/collections.js'
 import VerticalColorSlider from './components/VerticalColorSlider.jsx'
 import MaskedLogo from './components/MaskedLogo.jsx'
 import CollectionSelect from './screens/CollectionSelect.jsx'
 import ResultsScreen from './screens/ResultsScreen.jsx'
+import ChallengeLobby from './screens/ChallengeLobby.jsx'
 import { calculateScore } from './utils/color.js'
 import { getDailyDateString, getDailySeed, seededShuffle, lcg } from './utils/daily.js'
+import { supabase } from './lib/supabase.js'
 
 const ROUNDS_PER_GAME = 5
 
@@ -18,8 +20,42 @@ const HUE_TRACK =
   'hsl(270,100%,50%),hsl(300,100%,50%),hsl(330,100%,50%),' +
   'hsl(360,100%,50%))'
 
+// Detect /challenge/[id] on initial load
+const challengePathMatch = window.location.pathname.match(/^\/challenge\/([a-z0-9]+)$/i)
+
 function slugToName(slug) {
   return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+}
+
+function generateChallengeId() {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+  return Array.from({ length: 7 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
+
+function idToSeed(id) {
+  return id.split('').reduce((acc, c, i) => acc + c.charCodeAt(0) * (i + 1), 0)
+}
+
+function buildTeamsFromSlugs(slugs, challengeId) {
+  const slugToLogoUrl = {}
+  for (const col of allCollections) {
+    for (const t of col.teams) {
+      if (!slugToLogoUrl[t.slug]) {
+        slugToLogoUrl[t.slug] = col.logoBasePath + t.logoFile
+      }
+    }
+  }
+  const rng = lcg(idToSeed(challengeId))
+  return slugs.map(slug => {
+    const dc = dominantColors[slug]
+    return {
+      slug,
+      name: slugToName(slug),
+      logoUrl: slugToLogoUrl[slug] || '',
+      dominantColor: dc,
+      randomStartingColor: { h: (dc.h + 150 + Math.floor(rng() * 60)) % 360, s: 80, l: 50 },
+    }
+  })
 }
 
 function buildDailyTeams() {
@@ -66,7 +102,6 @@ function buildRoundTeams(collection) {
       name: slugToName(t.slug),
       logoUrl: t.logoUrl ?? (collection.logoBasePath + t.logoFile),
       dominantColor: dc,
-      // Start with complementary hue, offset by ±30° randomly to vary per session
       randomStartingColor: {
         h: (dc.h + 150 + Math.floor(Math.random() * 60)) % 360,
         s: 80,
@@ -103,24 +138,51 @@ function useResponsive() {
   return vals
 }
 
+function goHome(setScreen) {
+  setScreen('select')
+  history.pushState(null, '', '/')
+}
+
 // ── Main App ────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [screen, setScreen] = useState('select')        // 'select' | 'game' | 'results'
+  const [screen, setScreen] = useState(challengePathMatch ? 'challenge-join' : 'select')
   const [collection, setCollection] = useState(null)
   const [roundTeams, setRoundTeams] = useState([])
   const [currentRound, setCurrentRound] = useState(0)
   const [roundScores, setRoundScores] = useState([])
   const [isDailyChallenge, setIsDailyChallenge] = useState(false)
 
+  // Challenge state
+  const [isChallengeMode, setIsChallengeMode] = useState(false)
+  const [challengeId, setChallengeId] = useState(challengePathMatch?.[1] ?? null)
+  const [challengeNickname, setChallengeNickname] = useState('')
+  const [challengeIsCreator, setChallengeIsCreator] = useState(false)
+  const [challengeLoading, setChallengeLoading] = useState(!!challengePathMatch)
+  const [challengeError, setChallengeError] = useState(false)
+
   // Per-round game state
   const { logoSize, trackH, thumbSize } = useResponsive()
   const [guess, setGuess] = useState({ h: 0, s: 80, l: 50 })
-  const [phase, setPhase] = useState('playing')         // 'playing' | 'revealed'
+  const [phase, setPhase] = useState('playing')
   const [score, setScore] = useState(null)
   const [timeLeft, setTimeLeft] = useState(30)
 
   const currentTeam = roundTeams[currentRound]
+
+  // Load challenge teams when joining via URL
+  useEffect(() => {
+    if (screen !== 'challenge-join' || !challengeId) return
+    if (!supabase) { setChallengeError(true); setChallengeLoading(false); return }
+    supabase.from('challenges').select('team_slugs').eq('id', challengeId).single()
+      .then(({ data, error }) => {
+        if (error || !data) { setChallengeError(true); setChallengeLoading(false); return }
+        setRoundTeams(buildTeamsFromSlugs(data.team_slugs, challengeId))
+        setCollection({ id: 'challenge', name: 'Friend Challenge', logoBasePath: '', teams: [] })
+        setChallengeLoading(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Reset guess + timer when round changes
   useEffect(() => {
@@ -148,6 +210,7 @@ export default function App() {
     setCurrentRound(0)
     setRoundScores([])
     setIsDailyChallenge(false)
+    setIsChallengeMode(false)
     setScreen('game')
   }
 
@@ -159,6 +222,43 @@ export default function App() {
     setCurrentRound(0)
     setRoundScores([])
     setIsDailyChallenge(true)
+    setIsChallengeMode(false)
+    setScreen('game')
+  }
+
+  async function handleCreateChallenge() {
+    const seen = new Set()
+    const all = []
+    for (const col of allCollections) {
+      for (const t of col.teams) {
+        if (!seen.has(t.slug) && dominantColors[t.slug] != null) {
+          seen.add(t.slug)
+          all.push(t.slug)
+        }
+      }
+    }
+    const slugs = shuffle(all).slice(0, ROUNDS_PER_GAME)
+    const id = generateChallengeId()
+    if (supabase) {
+      await supabase.from('challenges').insert({ id, team_slugs: slugs })
+    }
+    setChallengeId(id)
+    setRoundTeams(buildTeamsFromSlugs(slugs, id))
+    setCollection({ id: 'challenge', name: 'Friend Challenge', logoBasePath: '', teams: [] })
+    setCurrentRound(0)
+    setRoundScores([])
+    setIsChallengeMode(true)
+    setChallengeIsCreator(true)
+    setChallengeError(false)
+    setScreen('challenge-lobby')
+  }
+
+  function handlePlayChallenge(nickname) {
+    setChallengeNickname(nickname)
+    setIsDailyChallenge(false)
+    setIsChallengeMode(true)
+    setCurrentRound(0)
+    setRoundScores([])
     setScreen('game')
   }
 
@@ -181,7 +281,39 @@ export default function App() {
   // ── Screens ──────────────────────────────────────────────────────────────
 
   if (screen === 'select') {
-    return <CollectionSelect onSelect={handleSelectCollection} onDailyChallenge={handleDailyChallenge} />
+    return (
+      <CollectionSelect
+        onSelect={handleSelectCollection}
+        onDailyChallenge={handleDailyChallenge}
+        onChallengeFriends={handleCreateChallenge}
+      />
+    )
+  }
+
+  if (screen === 'challenge-lobby') {
+    return (
+      <ChallengeLobby
+        challengeId={challengeId}
+        isCreator={challengeIsCreator}
+        isLoading={false}
+        error={false}
+        onPlay={handlePlayChallenge}
+        onBack={() => goHome(setScreen)}
+      />
+    )
+  }
+
+  if (screen === 'challenge-join') {
+    return (
+      <ChallengeLobby
+        challengeId={challengeId}
+        isCreator={false}
+        isLoading={challengeLoading}
+        error={challengeError}
+        onPlay={handlePlayChallenge}
+        onBack={() => goHome(setScreen)}
+      />
+    )
   }
 
   if (screen === 'results') {
@@ -189,11 +321,14 @@ export default function App() {
       <ResultsScreen
         roundTeams={roundTeams}
         roundScores={roundScores}
-        collectionName={collection.name}
+        collectionName={collection?.name ?? ''}
         onPlayAgain={() => isDailyChallenge ? handleDailyChallenge() : handleSelectCollection(collection)}
-        onChangeCollection={() => setScreen('select')}
+        onChangeCollection={() => goHome(setScreen)}
         isDailyChallenge={isDailyChallenge}
         dailyDate={getDailyDateString()}
+        isChallengeMode={isChallengeMode}
+        challengeId={challengeId}
+        challengeNickname={challengeNickname}
       />
     )
   }
@@ -202,10 +337,10 @@ export default function App() {
   if (!currentTeam) return null
 
   const { h, s, l } = guess
-  const dominant    = currentTeam.dominantColor
-  const guessHsl    = `hsl(${h},${s}%,${l}%)`
-  const correctHsl  = `hsl(${dominant.h},${dominant.s}%,${dominant.l}%)`
-  const logoColor   = phase === 'revealed' ? dominant : guess
+  const dominant   = currentTeam.dominantColor
+  const guessHsl   = `hsl(${h},${s}%,${l}%)`
+  const correctHsl = `hsl(${dominant.h},${dominant.s}%,${dominant.l}%)`
+  const logoColor  = phase === 'revealed' ? dominant : guess
 
   const satTrack = `linear-gradient(to right, hsl(${h},0%,${l}%), hsl(${h},100%,${l}%))`
   const litTrack = `linear-gradient(to right, hsl(${h},${s}%,5%), hsl(${h},${s}%,50%), hsl(${h},${s}%,95%))`
@@ -227,7 +362,7 @@ export default function App() {
           {/* Header */}
           <div className="flex items-center gap-3 px-4 md:px-6 py-3 md:py-4 border-b border-zinc-800/60">
             <button
-              onClick={() => setScreen('select')}
+              onClick={() => goHome(setScreen)}
               className="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-90 transition-all duration-150 cursor-pointer text-zinc-400 hover:text-white"
               aria-label="Back to collections"
             >
@@ -237,11 +372,13 @@ export default function App() {
             </button>
             <div className="min-w-0 flex-1">
               <h1 className="text-sm md:text-base font-extrabold tracking-tight text-white leading-tight truncate">
-                {collection.name}
+                {collection?.name}
               </h1>
-              <p className="text-xs text-zinc-500 mt-0.5 hidden sm:block">
-                Guess the logo's color
-              </p>
+              {isChallengeMode && challengeNickname && (
+                <p className="text-xs text-violet-400 mt-0.5 hidden sm:block">
+                  Playing as {challengeNickname}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-xs font-mono text-zinc-500">
@@ -270,10 +407,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Main area — column on mobile, row on md+ */}
+          {/* Main area */}
           <div className="flex flex-col md:flex-row items-center gap-4 md:gap-6 px-4 md:px-6 py-5 md:py-8">
-
-            {/* Logo + team name — shown first on mobile */}
             <div className="flex flex-col items-center justify-center min-w-0 order-1 md:order-2 md:flex-1">
               <MaskedLogo
                 src={currentTeam.logoUrl}
@@ -284,10 +419,9 @@ export default function App() {
               <h2 className="mt-3 md:mt-5 text-lg md:text-xl font-bold text-white tracking-tight text-center">
                 {currentTeam.name}
               </h2>
-              <p className="text-xs text-zinc-500 mt-1 text-center">{collection.name}</p>
+              <p className="text-xs text-zinc-500 mt-1 text-center">{collection?.name}</p>
             </div>
 
-            {/* Sliders — shown below logo on mobile */}
             <div className={`flex items-center gap-4 shrink-0 order-2 md:order-1 transition-opacity duration-300 ${phase === 'revealed' ? 'opacity-40 pointer-events-none' : ''}`}>
               <VerticalColorSlider
                 label="Hue" abbr="H" value={h} min={0} max={360} unit="°"
