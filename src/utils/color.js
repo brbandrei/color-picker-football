@@ -60,5 +60,5 @@ export function calculateScore(guessHsl, realHsl) {
 
   const dist = 0.60 * hDist + 0.25 * sDist + 0.15 * lDist  // 0–1
 
-  return Math.round(Math.max(0, 1 - dist) ** 1.7 * 100)
+  return Math.round(Math.max(0, 1 - dist) ** 2.5 * 100)
 }
